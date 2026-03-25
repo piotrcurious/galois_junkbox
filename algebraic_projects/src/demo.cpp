@@ -4,7 +4,7 @@
 // ║  Compile:  g++ -std=c++17 -O2 demo.cpp -o demo && ./demo             ║
 // ╚══════════════════════════════════════════════════════════════════════╝
 
-#include "algebraic_field.hpp"
+#include "../include/algebraic_field.hpp"
 #include <cassert>
 #include <cmath>
 #include <iomanip>
