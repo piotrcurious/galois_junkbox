@@ -1,4 +1,4 @@
-#include "algebraic_field.hpp"
+#include "../include/algebraic_field.hpp"
 #include <FL/Fl.H>
 #include <FL/Fl_Double_Window.H>
 #include <FL/fl_draw.H>
