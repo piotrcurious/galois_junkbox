@@ -36,6 +36,7 @@
 //  This is the coefficient domain for all higher extensions.
 // ═══════════════════════════════════════════════════════════════════
 class Q {
+    using i128 = __int128;
 public:
     long long n = 0, d = 1;
 
@@ -43,12 +44,26 @@ public:
     constexpr Q(long long num, long long den = 1) : n(num), d(den) { canon(); }
 
     constexpr Q  operator-()  const noexcept { return {-n, d}; }
-    constexpr Q  operator+(Q r) const { return {n*r.d + r.n*d, d*r.d}; }
-    constexpr Q  operator-(Q r) const { return {n*r.d - r.n*d, d*r.d}; }
-    constexpr Q  operator*(Q r) const { return {n*r.n, d*r.d}; }
+    constexpr Q  operator+(Q r) const {
+        i128 nn = (i128)n * r.d + (i128)r.n * d;
+        i128 dd = (i128)d * r.d;
+        return from_i128(nn, dd);
+    }
+    constexpr Q  operator-(Q r) const {
+        i128 nn = (i128)n * r.d - (i128)r.n * d;
+        i128 dd = (i128)d * r.d;
+        return from_i128(nn, dd);
+    }
+    constexpr Q  operator*(Q r) const {
+        i128 nn = (i128)n * r.n;
+        i128 dd = (i128)d * r.d;
+        return from_i128(nn, dd);
+    }
     constexpr Q  operator/(Q r) const {
         if (r.n == 0) throw std::domain_error("Q: division by zero");
-        return {n*r.d, d*r.n};
+        i128 nn = (i128)n * r.d;
+        i128 dd = (i128)d * r.n;
+        return from_i128(nn, dd);
     }
     constexpr bool operator==(Q r) const noexcept { return n==r.n && d==r.d; }
     constexpr bool operator!=(Q r) const noexcept { return !(*this==r); }
@@ -64,13 +79,21 @@ public:
     }
 
 private:
+    static constexpr Q from_i128(i128 nn, i128 dd) {
+        if (dd == 0) throw std::domain_error("Q: division by zero");
+        if (dd < 0) { nn = -nn; dd = -dd; }
+        i128 g = gcd_128(nn < 0 ? -nn : nn, dd);
+        nn /= g; dd /= g;
+        // If it still overflows long long after reduction, we are out of luck with this representation
+        return Q((long long)nn, (long long)dd);
+    }
+    static constexpr i128 gcd_128(i128 a, i128 b) noexcept {
+        while (b) { a %= b; i128 t = a; a = b; b = t; } return a ? a : 1;
+    }
     constexpr void canon() noexcept {
         if (d < 0) { n=-n; d=-d; }
-        long long g = gcd(n<0?-n:n, d);
+        long long g = (long long)gcd_128(n<0?-n:n, d);
         n /= g; d /= g;
-    }
-    static constexpr long long gcd(long long a, long long b) noexcept {
-        while (b) { a%=b; long long t=a; a=b; b=t; } return a ? a : 1;
     }
 };
 
