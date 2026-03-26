@@ -17,7 +17,9 @@ CORE_H   := $(INCDIR)/algebraic_field.hpp
 # Targets
 STATIC_DEMOS  := demo explorer
 EXAMPLE_DEMOS := algebraic_viz cubic_viz snowflake_viz rotation_drift_viz
-INTERACTIVE   := interactive_theodorus interactive_cubic interactive_snowflake interactive_rotation
+INTERACTIVE   := interactive_theodorus interactive_cubic interactive_snowflake \
+                 interactive_rotation interactive_polygons interactive_fft \
+                 interactive_dashboard
 
 ALL_BINARIES := $(addprefix $(BINDIR)/, $(STATIC_DEMOS) $(EXAMPLE_DEMOS) $(INTERACTIVE))
 
@@ -42,10 +44,6 @@ $(BINDIR)/%: $(EXDIR)/%.cpp $(CORE_H)
 # Interactive Demos (FLTK)
 $(BINDIR)/interactive_%: $(SRCDIR)/interactive_%.cpp $(CORE_H)
 	$(CXX) $(CXXFLAGS) $< -o $@ $(FLTK) -lm
-
-# Special case for rotation_drift which is also in EXDIR
-$(BINDIR)/rotation_drift_viz: $(EXDIR)/rotation_drift_viz.cpp $(CORE_H)
-	$(CXX) $(CXXFLAGS) $< -o $@ $(CAIRO) -lm
 
 # Command to generate all PNG artifacts into output/
 run_examples: all
