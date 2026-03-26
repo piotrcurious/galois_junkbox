@@ -14,8 +14,10 @@ public:
     double offset_x, offset_y;
     int steps;
     bool auto_zoom;
+    int mouse_x, mouse_y;
+    bool show_glass;
 
-    TheodorusWidget(int X, int Y, int W, int H) : Fl_Widget(X, Y, W, H), zoom(40.0), offset_x(0), offset_y(0), steps(45), auto_zoom(false) {}
+    TheodorusWidget(int X, int Y, int W, int H) : Fl_Widget(X, Y, W, H), zoom(40.0), offset_x(0), offset_y(0), steps(45), auto_zoom(false), mouse_x(0), mouse_y(0), show_glass(false) {}
 
     void draw() override {
         fl_push_clip(x(), y(), w(), h());
@@ -28,80 +30,102 @@ public:
         struct Point { double x, y; };
         std::vector<Point> alg_pts, flt_pts;
 
-        // Exact-radial construction
+        // Construction
         {
             double angle = 0.0;
             alg_pts.push_back({0, 0});
-            alg_pts.push_back({zoom, 0});
+            alg_pts.push_back({1.0, 0});
+            double fx = 1.0, fy = 0;
+            flt_pts.push_back({0, 0});
+            flt_pts.push_back({1.0, 0});
+
             for(int n = 1; n <= steps; ++n) {
                 angle += std::atan(1.0 / std::sqrt(static_cast<double>(n)));
-                double r = zoom * std::sqrt(static_cast<double>(n+1));
+                double r = std::sqrt(static_cast<double>(n+1));
                 alg_pts.push_back({r * std::cos(angle), -r * std::sin(angle)});
-            }
-        }
 
-        // Floating point accumulation construction
-        {
-            double fx = zoom, fy = 0;
-            flt_pts.push_back({0, 0});
-            flt_pts.push_back({fx, fy});
-            for(int n = 1; n <= steps; ++n) {
                 double r_curr = std::sqrt(fx*fx + fy*fy);
                 double nx = -fy / r_curr, ny =  fx / r_curr;
-                fx += nx * zoom;
-                fy += ny * zoom;
+                fx += nx; fy += ny;
                 flt_pts.push_back({fx, fy});
             }
         }
 
         if (auto_zoom) {
-            cx = x() + w()/2.0 - alg_pts.back().x;
-            cy = y() + h()/2.0 - alg_pts.back().y;
+            cx = x() + w()/2.0 - alg_pts.back().x * zoom;
+            cy = y() + h()/2.0 - alg_pts.back().y * zoom;
         }
 
-        // Draw float spiral (Red)
-        fl_color(FL_RED);
-        for(size_t i = 1; i < flt_pts.size() - 1; ++i) {
-            fl_line(cx + flt_pts[i].x, cy + flt_pts[i].y,
-                    cx + flt_pts[i+1].x, cy + flt_pts[i+1].y);
-        }
+        // Draw paths
+        auto draw_path = [&](const std::vector<Point>& pts, Fl_Color col, int width) {
+            fl_color(col); fl_line_style(FL_SOLID, width);
+            for(size_t i = 0; i < pts.size() - 1; ++i) {
+                fl_line(cx + pts[i].x * zoom, cy + pts[i].y * zoom,
+                        cx + pts[i+1].x * zoom, cy + pts[i+1].y * zoom);
+            }
+        };
 
-        // Draw exact-radial spiral (Green)
-        fl_color(FL_GREEN);
-        fl_line_style(FL_SOLID, 2);
-        for(size_t i = 1; i < alg_pts.size() - 1; ++i) {
-            fl_line(cx + alg_pts[i].x, cy + alg_pts[i].y,
-                    cx + alg_pts[i+1].x, cy + alg_pts[i+1].y);
-        }
+        draw_path(flt_pts, FL_RED, 1);
+        draw_path(alg_pts, FL_GREEN, 2);
         fl_line_style(0);
 
-        // Error analysis at the tip
-        double tip_err = std::sqrt(std::pow(alg_pts.back().x - flt_pts.back().x, 2) + std::pow(alg_pts.back().y - flt_pts.back().y, 2)) / zoom;
+        // Magnifying Glass
+        if (show_glass) {
+            int gx = mouse_x, gy = mouse_y, gr = 100;
+            fl_push_clip(gx - gr, gy - gr, 2*gr, 2*gr);
+            fl_color(FL_BLACK); fl_rectf(gx - gr, gy - gr, 2*gr, 2*gr);
 
-        fl_color(FL_WHITE);
-        fl_font(FL_HELVETICA, 14);
-        fl_draw("Spiral of Theodorus: GREEN (Exact Radial) vs RED (Float Accumulation)", x()+10, y()+20);
-        fl_draw(("Steps: " + std::to_string(steps) + " (Up/Down to change)").c_str(), x()+10, y()+40);
+            double g_zoom = zoom * 1000.0;
+            // Target point in model space under the glass
+            double tx = (gx - cx) / zoom;
+            double ty = (gy - cy) / zoom;
 
-        std::stringstream ss;
-        ss << std::fixed << std::setprecision(10) << "Normalized Tip Error: " << tip_err;
-        fl_draw(ss.str().c_str(), x()+10, y()+60);
+            double gcx = gx - tx * g_zoom;
+            double gcy = gy - ty * g_zoom;
 
-        fl_draw("Scroll: Zoom, Drag: Pan, A: Toggle Tip Auto-Follow", x()+10, y()+80);
+            // Draw paths in glass
+            fl_color(FL_RED);
+            for(size_t i = 0; i < flt_pts.size() - 1; ++i) {
+                fl_line(gcx + flt_pts[i].x * g_zoom, gcy + flt_pts[i].y * g_zoom,
+                        gcx + flt_pts[i+1].x * g_zoom, gcy + flt_pts[i+1].y * g_zoom);
+            }
+            fl_color(FL_GREEN);
+            for(size_t i = 0; i < alg_pts.size() - 1; ++i) {
+                fl_line(gcx + alg_pts[i].x * g_zoom, gcy + alg_pts[i].y * g_zoom,
+                        gcx + alg_pts[i+1].x * g_zoom, gcy + alg_pts[i+1].y * g_zoom);
+            }
+
+            fl_pop_clip();
+            fl_color(FL_WHITE); fl_circle(gx, gy, gr);
+            fl_draw("1000x Glass", gx - 30, gy + gr + 15);
+        }
+
+        // Stats
+        double tip_err = std::sqrt(std::pow(alg_pts.back().x - flt_pts.back().x, 2) + std::pow(alg_pts.back().y - flt_pts.back().y, 2));
+        fl_color(FL_WHITE); fl_font(FL_HELVETICA, 14);
+        fl_draw("Spiral of Theodorus: Precision Analysis", x()+20, y()+30);
+        fl_draw(("Steps: " + std::to_string(steps) + " (Up/Down)").c_str(), x()+20, y()+50);
+        fl_draw(("Normalized Tip Error: " + std::to_string(tip_err)).c_str(), x()+20, y()+70);
+        fl_draw("G: Toggle 1000x Magnifying Glass, A: Auto-Follow Tip", x()+20, y()+90);
 
         fl_pop_clip();
     }
 
     int handle(int event) override {
-        static int last_x, last_y;
         switch (event) {
+            case FL_FOCUS: return 1;
+            case FL_UNFOCUS: return 1;
+            case FL_MOVE:
+                mouse_x = Fl::event_x(); mouse_y = Fl::event_y();
+                if (show_glass) redraw();
+                return 1;
             case FL_PUSH:
-                last_x = Fl::event_x(); last_y = Fl::event_y();
+                Fl::focus(this);
                 return 1;
             case FL_DRAG:
-                offset_x += (Fl::event_x() - last_x);
-                offset_y += (Fl::event_y() - last_y);
-                last_x = Fl::event_x(); last_y = Fl::event_y();
+                offset_x += (Fl::event_x() - mouse_x);
+                offset_y += (Fl::event_y() - mouse_y);
+                mouse_x = Fl::event_x(); mouse_y = Fl::event_y();
                 redraw();
                 return 1;
             case FL_MOUSEWHEEL:
@@ -110,10 +134,11 @@ public:
                 redraw();
                 return 1;
             case FL_KEYDOWN:
-                if (Fl::event_key() == FL_Up) steps += 10;
-                else if (Fl::event_key() == FL_Down && steps > 10) steps -= 10;
-                else if (Fl::event_key() == 'a') auto_zoom = !auto_zoom;
-                redraw();
+                int k = Fl::event_key();
+                if (k == FL_Up) { steps += 10; redraw(); }
+                else if (k == FL_Down && steps > 10) { steps -= 10; redraw(); }
+                else if (k == 'a') { auto_zoom = !auto_zoom; redraw(); }
+                else if (k == 'g') { show_glass = !show_glass; redraw(); }
                 return 1;
         }
         return Fl_Widget::handle(event);
@@ -121,9 +146,10 @@ public:
 };
 
 int main() {
-    Fl_Double_Window* win = new Fl_Double_Window(800, 600, "Theodorus Precision Analysis");
-    new TheodorusWidget(0, 0, 800, 600);
-    win->resizable(win);
+    Fl_Double_Window* win = new Fl_Double_Window(1000, 800, "Theodorus Precision: Magnifying Glass");
+    TheodorusWidget* tw = new TheodorusWidget(0, 0, 1000, 800);
+    win->resizable(tw);
     win->show();
+    Fl::focus(tw);
     return Fl::run();
 }
