@@ -9,16 +9,16 @@
 #include <sstream>
 
 class CubicRootWidget : public Fl_Widget {
+public:
     double scale;
     double offset_x, offset_y;
     Qcbrt2 alpha, beta, gamma;
-    bool computed;
+    int edit_mode; // 0: alpha, 1: beta
+    int coeff_idx; // 0: a, 1: b, 2: c
 
-public:
     CubicRootWidget(int X, int Y, int W, int H) : Fl_Widget(X, Y, W, H), scale(150.0), offset_x(0), offset_y(0),
-                                                   alpha(rat(1), rat(1), rat(0)), beta(rat(0), rat(1), rat(1)), computed(false) {
+                                                   alpha(rat(1), rat(1), rat(0)), beta(rat(0), rat(1), rat(1)), edit_mode(0), coeff_idx(0) {
         gamma = alpha * beta;
-        computed = true;
     }
 
     void draw() override {
@@ -41,7 +41,7 @@ public:
         std::complex<double> r2(rho * -0.5, rho * std::sqrt(3.0)/2.0);
         std::complex<double> r3(rho * -0.5, rho * -std::sqrt(3.0)/2.0);
 
-        // Unit circle-ish for ∛2
+        // Circle for ∛2
         fl_color(FL_GRAY);
         fl_arc(cx - rho*scale, cy - rho*scale, 2*rho*scale, 2*rho*scale, 0, 360);
 
@@ -59,30 +59,42 @@ public:
         draw_root(r2, FL_MAGENTA, "ω∛2 (Complex)");
         draw_root(r3, FL_MAGENTA, "ω²∛2 (Complex)");
 
-        // Text display
+        // UI Panel
+        fl_color(FL_BLACK);
+        fl_rectf(x(), y(), 350, h());
+        fl_color(FL_GRAY);
+        fl_rect(x(), y(), 350, h());
+
         fl_color(FL_YELLOW);
         fl_font(FL_HELVETICA_BOLD, 18);
-        fl_draw("Interactive Cubic Explorer: ℚ(∛2)", x()+20, y()+30);
+        fl_draw("Interactive Cubic Explorer", x()+20, y()+30);
 
         fl_color(FL_WHITE);
         fl_font(FL_HELVETICA, 14);
         int ty = y() + 60;
-        fl_draw(("α = " + alpha.str()).c_str(), x()+20, ty); ty+=20;
-        fl_draw(("N(α) = " + alpha.norm().str()).c_str(), x()+20, ty); ty+=30;
 
-        fl_draw(("β = " + beta.str()).c_str(), x()+20, ty); ty+=20;
-        fl_draw(("N(β) = " + beta.norm().str()).c_str(), x()+20, ty); ty+=30;
+        auto draw_val = [&](const char* label, Qcbrt2 val, int mode) {
+            fl_color(edit_mode == mode ? FL_CYAN : FL_WHITE);
+            fl_draw((std::string(label) + " = " + val.str()).c_str(), x()+20, ty); ty+=20;
+            fl_color(FL_WHITE);
+            fl_draw(("N(" + std::string(label) + ") = " + val.norm().str()).c_str(), x()+20, ty); ty+=30;
+        };
+
+        draw_val("α", alpha, 0);
+        draw_val("β", beta, 1);
 
         fl_color(FL_GREEN);
-        fl_draw(("α·β = " + gamma.str()).c_str(), x()+20, ty); ty+=20;
-        fl_draw(("N(α·β) = " + gamma.norm().str()).c_str(), x()+20, ty); ty+=30;
+        fl_draw(("α · β = " + gamma.str()).c_str(), x()+20, ty); ty+=20;
+        fl_draw(("N(α · β) = " + gamma.norm().str()).c_str(), x()+20, ty); ty+=30;
 
         bool check = (alpha.norm() * beta.norm() == gamma.norm());
         fl_color(check ? FL_GREEN : FL_RED);
-        fl_draw(check ? "✓ Norm identity EXACTLY satisfied" : "✗ Error in Norm identity", x()+20, ty);
+        fl_draw(check ? "✓ Norm Multiplicativity EXACT" : "✗ Error in Norm Identity", x()+20, ty); ty+=40;
 
         fl_color(FL_WHITE);
-        fl_draw("Scroll to Zoom, Drag to Pan.", x()+20, y()+h()-20);
+        fl_draw("TAB: Switch α/β, Keys 1/2/3: coeff", x()+20, ty); ty+=20;
+        fl_draw("Up/Down: Adjust coefficient", x()+20, ty); ty+=20;
+        fl_draw("Drag: Pan, Scroll: Zoom", x()+20, ty);
 
         fl_pop_clip();
     }
@@ -104,14 +116,30 @@ public:
                 else scale /= 1.1;
                 redraw();
                 return 1;
+            case FL_KEYDOWN: {
+                int k = Fl::event_key();
+                if (k == FL_Tab) edit_mode = 1 - edit_mode;
+                else if (k == '1') coeff_idx = 0;
+                else if (k == '2') coeff_idx = 1;
+                else if (k == '3') coeff_idx = 2;
+                else if (k == FL_Up || k == FL_Down) {
+                    Qcbrt2 &target = (edit_mode == 0) ? alpha : beta;
+                    Q &c = (coeff_idx == 0) ? target.a : (coeff_idx == 1 ? target.b : target.c);
+                    if (k == FL_Up) c = c + rat(1);
+                    else c = c - rat(1);
+                    gamma = alpha * beta;
+                }
+                redraw();
+                return 1;
+            }
         }
         return Fl_Widget::handle(event);
     }
 };
 
 int main() {
-    Fl_Double_Window* win = new Fl_Double_Window(800, 600, "Interactive Cubic Roots");
-    new CubicRootWidget(0, 0, 800, 600);
+    Fl_Double_Window* win = new Fl_Double_Window(1000, 700, "Cubic Field Element Analysis");
+    new CubicRootWidget(0, 0, 1000, 700);
     win->resizable(win);
     win->show();
     return Fl::run();

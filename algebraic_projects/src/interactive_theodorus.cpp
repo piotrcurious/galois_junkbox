@@ -9,11 +9,13 @@
 #include <sstream>
 
 class TheodorusWidget : public Fl_Widget {
+public:
     double zoom;
     double offset_x, offset_y;
     int steps;
-public:
-    TheodorusWidget(int X, int Y, int W, int H) : Fl_Widget(X, Y, W, H), zoom(40.0), offset_x(0), offset_y(0), steps(45) {}
+    bool auto_zoom;
+
+    TheodorusWidget(int X, int Y, int W, int H) : Fl_Widget(X, Y, W, H), zoom(40.0), offset_x(0), offset_y(0), steps(45), auto_zoom(false) {}
 
     void draw() override {
         fl_push_clip(x(), y(), w(), h());
@@ -23,63 +25,69 @@ public:
         double cx = x() + w() / 2.0 + offset_x;
         double cy = y() + h() / 2.0 + offset_y;
 
-        // Exact points on the Spiral of Theodorus are (sqrt(n), atan(1/sqrt(n))) in polar
-        // Here we draw the exact spiral in Green and float in Red
-
         struct Point { double x, y; };
         std::vector<Point> alg_pts, flt_pts;
 
-        // Points on the Spiral of Theodorus are (sqrt(n), theta_n)
-        // theta_n = sum_{k=1}^{n-1} atan(1/sqrt(k))
+        // Exact-radial construction
         {
             double angle = 0.0;
-            alg_pts.push_back({cx, cy});
-            alg_pts.push_back({cx + zoom, cy});
+            alg_pts.push_back({0, 0});
+            alg_pts.push_back({zoom, 0});
             for(int n = 1; n <= steps; ++n) {
-                // Here we use Q2 to represent the exact squared-radius relationship.
-                // Q2(rat(n+1)) represents the squared radius.
-                Q2 r_sq(rat(n+1));
-                double r = std::sqrt(r_sq.approx()); // radius is sqrt(n+1)
-
                 angle += std::atan(1.0 / std::sqrt(static_cast<double>(n)));
-                alg_pts.push_back({cx + zoom * r * std::cos(angle), cy - zoom * r * std::sin(angle)});
+                double r = zoom * std::sqrt(static_cast<double>(n+1));
+                alg_pts.push_back({r * std::cos(angle), -r * std::sin(angle)});
             }
         }
 
-        // Floating point construction (accumulated normals)
+        // Floating point accumulation construction
         {
-            double fx = cx + zoom, fy = cy;
-            flt_pts.push_back({cx, cy});
+            double fx = zoom, fy = 0;
+            flt_pts.push_back({0, 0});
             flt_pts.push_back({fx, fy});
             for(int n = 1; n <= steps; ++n) {
-                double vx = fx - cx, vy = fy - cy;
-                double r_curr = std::sqrt(vx*vx + vy*vy);
-                double nx = -vy / r_curr, ny =  vx / r_curr;
-                fx += nx * (zoom / 40.0); // scale normal to zoom
-                fy += ny * (zoom / 40.0);
+                double r_curr = std::sqrt(fx*fx + fy*fy);
+                double nx = -fy / r_curr, ny =  fx / r_curr;
+                fx += nx * zoom;
+                fy += ny * zoom;
                 flt_pts.push_back({fx, fy});
             }
+        }
+
+        if (auto_zoom) {
+            cx = x() + w()/2.0 - alg_pts.back().x;
+            cy = y() + h()/2.0 - alg_pts.back().y;
         }
 
         // Draw float spiral (Red)
         fl_color(FL_RED);
         for(size_t i = 1; i < flt_pts.size() - 1; ++i) {
-            fl_line(flt_pts[i].x, flt_pts[i].y, flt_pts[i+1].x, flt_pts[i+1].y);
+            fl_line(cx + flt_pts[i].x, cy + flt_pts[i].y,
+                    cx + flt_pts[i+1].x, cy + flt_pts[i+1].y);
         }
 
-        // Draw exact spiral (Green)
+        // Draw exact-radial spiral (Green)
         fl_color(FL_GREEN);
         fl_line_style(FL_SOLID, 2);
         for(size_t i = 1; i < alg_pts.size() - 1; ++i) {
-            fl_line(alg_pts[i].x, alg_pts[i].y, alg_pts[i+1].x, alg_pts[i+1].y);
+            fl_line(cx + alg_pts[i].x, cy + alg_pts[i].y,
+                    cx + alg_pts[i+1].x, cy + alg_pts[i+1].y);
         }
         fl_line_style(0);
 
+        // Error analysis at the tip
+        double tip_err = std::sqrt(std::pow(alg_pts.back().x - flt_pts.back().x, 2) + std::pow(alg_pts.back().y - flt_pts.back().y, 2)) / zoom;
+
         fl_color(FL_WHITE);
         fl_font(FL_HELVETICA, 14);
-        fl_draw("Spiral of Theodorus: Green (Exact Radius) vs Red (Float Normal Accumulation)", x()+10, y()+20);
-        fl_draw("Scroll to Zoom, Drag to Pan. Up/Down to change steps.", x()+10, y()+40);
-        fl_draw(("Steps: " + std::to_string(steps)).c_str(), x()+10, y()+60);
+        fl_draw("Spiral of Theodorus: GREEN (Exact Radial) vs RED (Float Accumulation)", x()+10, y()+20);
+        fl_draw(("Steps: " + std::to_string(steps) + " (Up/Down to change)").c_str(), x()+10, y()+40);
+
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(10) << "Normalized Tip Error: " << tip_err;
+        fl_draw(ss.str().c_str(), x()+10, y()+60);
+
+        fl_draw("Scroll: Zoom, Drag: Pan, A: Toggle Tip Auto-Follow", x()+10, y()+80);
 
         fl_pop_clip();
     }
@@ -102,8 +110,9 @@ public:
                 redraw();
                 return 1;
             case FL_KEYDOWN:
-                if (Fl::event_key() == FL_Up) steps++;
-                else if (Fl::event_key() == FL_Down && steps > 1) steps--;
+                if (Fl::event_key() == FL_Up) steps += 10;
+                else if (Fl::event_key() == FL_Down && steps > 10) steps -= 10;
+                else if (Fl::event_key() == 'a') auto_zoom = !auto_zoom;
                 redraw();
                 return 1;
         }
@@ -112,7 +121,7 @@ public:
 };
 
 int main() {
-    Fl_Double_Window* win = new Fl_Double_Window(800, 600, "Interactive Spiral of Theodorus");
+    Fl_Double_Window* win = new Fl_Double_Window(800, 600, "Theodorus Precision Analysis");
     new TheodorusWidget(0, 0, 800, 600);
     win->resizable(win);
     win->show();
