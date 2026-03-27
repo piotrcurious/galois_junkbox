@@ -65,8 +65,10 @@ private:
         return Q(nn, dd);
     }
     static constexpr i128 gcd_128(i128 a, i128 b) noexcept {
-        if (a < 0) a = -a; if (b < 0) b = -b;
-        while (b) { a %= b; i128 t = a; a = b; b = t; } return a ? a : 1;
+        if (a < 0) a = -a;
+        if (b < 0) b = -b;
+        while (b) { a %= b; i128 t = a; a = b; b = t; }
+        return a ? a : 1;
     }
     constexpr void canon() noexcept {
         if (d < 0) { n=-n; d=-d; }
