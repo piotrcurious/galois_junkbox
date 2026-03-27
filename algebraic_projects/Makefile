@@ -15,15 +15,15 @@ INCDIR   := include
 CORE_H   := $(INCDIR)/algebraic_field.hpp
 
 # Targets
-STATIC_DEMOS  := demo explorer
+STATIC_DEMOS  := demo explorer tests
 EXAMPLE_DEMOS := algebraic_viz cubic_viz snowflake_viz rotation_drift_viz
 INTERACTIVE   := interactive_theodorus interactive_cubic interactive_snowflake \
                  interactive_rotation interactive_polygons interactive_fft \
-                 interactive_dashboard
+                 interactive_dashboard interactive_lattice
 
 ALL_BINARIES := $(addprefix $(BINDIR)/, $(STATIC_DEMOS) $(EXAMPLE_DEMOS) $(INTERACTIVE))
 
-.PHONY: all clean run_examples
+.PHONY: all clean run_examples test
 
 all: $(BINDIR) $(OUTDIR) $(ALL_BINARIES)
 
@@ -53,7 +53,10 @@ run_examples: all
 	cd $(OUTDIR) && ../$(BINDIR)/rotation_drift_viz
 	@echo "Static visualizations updated in $(OUTDIR)/"
 
+test: $(BINDIR)/tests
+	./$(BINDIR)/tests
+
 clean:
 	rm -rf $(BINDIR)/* $(OUTDIR)/*.png
 
-.PHONY: all clean run_examples
+.PHONY: all clean run_examples test
