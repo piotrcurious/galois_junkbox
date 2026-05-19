@@ -1,0 +1,475 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pell Numbers & Galois Theory Explorer</title>
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --card-bg: #ffffff;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+            --math-bg: #0f172a;
+            --math-text: #e2e8f0;
+            --border-color: #cbd5e1;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 968px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 28px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+            border: 1px solid #e2e8f0;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 8px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            background: #f1f5f9;
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        .controls label {
+            font-weight: 600;
+            min-width: 120px;
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        .math-box {
+            font-size: 1.1rem;
+            background: var(--math-bg);
+            color: var(--math-text);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            overflow-x: auto;
+            margin: 12px 0;
+            border-left: 4px solid var(--accent-blue);
+        }
+
+        .highlight-y { color: #60a5fa; font-weight: bold; }
+        .highlight-x { color: #f87171; font-weight: bold; }
+        .highlight-sqrt { color: #4ade80; }
+
+        .explanation {
+            border-left: 4px solid var(--accent-blue);
+            background: #eff6ff;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 12px 0 20px 0;
+            font-size: 0.95rem;
+        }
+
+        .btn {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #2563eb;
+        }
+
+        svg {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 100%;
+            height: auto;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .matrix-grid {
+            display: inline-grid;
+            grid-template-columns: auto auto;
+            gap: 6px;
+            border-left: 2px solid var(--math-text);
+            border-right: 2px solid var(--math-text);
+            padding: 0 8px;
+            margin: 0 6px;
+            vertical-align: middle;
+            text-align: center;
+        }
+
+        .matrix-grid div {
+            min-width: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Pell Numbers & Galois Theory</h1>
+        <p class="subtitle">
+            Explore how the powers of the fundamental unit &alpha; = 1 + &radic;2 in the quadratic field ℚ(&radic;2) generate the Pell sequence.
+        </p>
+    </header>
+
+    <div class="layout">
+        <!-- Left Column: Math & Controls -->
+        <div>
+            <div class="card">
+                <h2>Field Explorer</h2>
+                <div class="controls">
+                    <label for="exponent">Exponent (n): <strong id="exp-val">3</strong></label>
+                    <input type="range" id="exponent" min="0" max="8" value="3">
+                    <button class="btn" id="prev-btn">⏮</button>
+                    <button class="btn" id="next-btn">⏭</button>
+                </div>
+
+                <h3>1. Algebraic Expansion</h3>
+                <p>Multiplying by &alpha; = 1 + &radic;2 repeatedly:</p>
+                <div class="math-box" id="expansion-box"></div>
+                <div class="explanation" id="pell-explanation"></div>
+
+                <h3>2. Galois Automorphism (&sigma;)</h3>
+                <p>The nontrivial automorphism swaps &radic;2 &mapsto; -&radic;2:</p>
+                <div class="math-box" id="galois-box"></div>
+
+                <h3>3. Field Norm & Pell's Equation</h3>
+                <p>N(&alpha;<sup>n</sup>) = x<sub>n</sub><sup>2</sup> - 2y<sub>n</sub><sup>2</sup> = (-1)<sup>n</sup>:</p>
+                <div class="math-box" id="norm-box"></div>
+                <div class="explanation" id="norm-explanation"></div>
+            </div>
+        </div>
+
+        <!-- Right Column: Visualization -->
+        <div>
+            <div class="card">
+                <h2>Silver Spiral Visualizer</h2>
+                <p>
+                    <strong>The Silver Tiling:</strong> We build rectangles according to <em>P<sub>n</sub> = 2P<sub>n-1</sub> + P<sub>n-2</sub></em>. In each step, we append <strong>two</strong> squares of size <em>P<sub>n</sub></em> to the previous <em>P<sub>n</sub> &times; P<sub>n-1</sub></em> rectangle. This creates a continuous, gapless double-armed spiral.
+                </p>
+                <svg id="spiral-svg" viewBox="0 0 500 500"></svg>
+
+                <h3 style="margin-top: 24px;">Transformation Matrix</h3>
+                <div class="math-box" style="text-align: center; display: flex; align-items: center; justify-content: center;">
+                    <div class="matrix-grid"><div>1</div><div>2</div><div>1</div><div>1</div></div>
+                    <sup>n</sup> =
+                    <div class="matrix-grid"><div id="m00" class="highlight-x">1</div><div id="m01">2</div><div id="m10" class="highlight-y">1</div><div id="m11">1</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function multiplyMatrices(A, B) {
+            return [
+                [A[0][0]*B[0][0] + A[0][1]*B[1][0], A[0][0]*B[0][1] + A[0][1]*B[1][1]],
+                [A[1][0]*B[0][0] + A[1][1]*B[1][0], A[1][0]*B[0][1] + A[1][1]*B[1][1]]
+            ];
+        }
+
+        function powerMatrix(matrix, n) {
+            let result = [[1n, 0n], [0n, 1n]];
+            let base = matrix;
+            while (n > 0) {
+                if (n % 2 === 1) result = multiplyMatrices(result, base);
+                base = multiplyMatrices(base, base);
+                n = Math.floor(n / 2);
+            }
+            return result;
+        }
+
+        function computeCoefficients(n) {
+            if (n === 0) return { x: 1n, y: 0n };
+            const M = [[1n, 2n], [1n, 1n]];
+            const Mn = powerMatrix(M, n);
+            return { x: Mn[0][0], y: Mn[1][0] };
+        }
+
+        const slider = document.getElementById('exponent');
+        const expVal = document.getElementById('exp-val');
+        const expansionBox = document.getElementById('expansion-box');
+        const pellExplanation = document.getElementById('pell-explanation');
+        const galoisBox = document.getElementById('galois-box');
+        const normBox = document.getElementById('norm-box');
+        const normExplanation = document.getElementById('norm-explanation');
+        const svg = document.getElementById('spiral-svg');
+
+        function updateUI(n) {
+            const { x, y } = computeCoefficients(n);
+            const normSign = n % 2 === 0 ? 1n : -1n;
+
+            expVal.innerText = n;
+            document.getElementById('m00').innerText = x.toString();
+            document.getElementById('m01').innerText = (2n * y).toString();
+            document.getElementById('m10').innerText = y.toString();
+            document.getElementById('m11').innerText = x.toString();
+
+            expansionBox.innerHTML = `(1 + &radic;2)<sup>${n}</sup> = <span class="highlight-x">${x}</span> + <span class="highlight-y">${y}</span>&radic;2`;
+            pellExplanation.innerHTML = `Pell number P<sub>${n}</sub> = <span class="highlight-y">${y}</span>, Companion x<sub>${n}</sub> = <span class="highlight-x">${x}</span>.`;
+            galoisBox.innerHTML = `&sigma;(${x} + ${y}&radic;2) = ${x} - ${y}&radic;2`;
+
+            const xSq = x * x;
+            const twoYSq = 2n * y * y;
+            normBox.innerHTML = `${x}<sup>2</sup> - 2(${y}<sup>2</sup>) = ${xSq} - ${twoYSq} = ${normSign}`;
+            normExplanation.innerHTML = `The norm identity x<sub>n</sub><sup>2</sup> - 2y<sub>n</sub><sup>2</sup> = (-1)<sup>n</sup> holds exactly.`;
+
+            renderSpiral(n);
+        }
+
+        function renderSpiral(maxN) {
+            svg.innerHTML = '';
+            if (maxN === 0) {
+                svg.innerHTML = `<text x="250" y="250" text-anchor="middle" fill="#94a3b8" font-size="16px">P_0 = 0</text>`;
+                return;
+            }
+
+            // Generate Pell sequence values dynamically
+            const ps = [0, 1];
+            for (let i = 2; i <= maxN * 2 + 2; i++) {
+                ps.push(2 * ps[i - 1] + ps[i - 2]);
+            }
+
+            // Create unscaled squares
+            const squares = [];
+            let bounds = { minX: 0, maxX: 1, minY: 0, maxY: 1 };
+
+            // Start with the initial square of size 1
+            squares.push({
+                id: 1,
+                size: 1,
+                x: 0,
+                y: 0,
+                color: `hsl(${(1 * 65 + 180) % 360}, 65%, 60%)`
+            });
+
+            // Tile adjacent squares dynamically based on periodic layout directions
+            for (let m = 2; m <= 2 * maxN; m++) {
+                const i = Math.floor((m + 1) / 2);
+                const s = ps[i];
+                const col = `hsl(${(i * 65 + 180) % 360}, 65%, 60%)`;
+                const k = (m - 2) % 4;
+                let sqX, sqY;
+
+                if (k === 0) { // Right side
+                    sqX = bounds.maxX;
+                    sqY = bounds.minY;
+                    bounds.maxX += s;
+                } else if (k === 1) { // Top side
+                    sqX = bounds.minX;
+                    sqY = bounds.maxY;
+                    bounds.maxY += s;
+                } else if (k === 2) { // Bottom side
+                    sqX = bounds.minX;
+                    sqY = bounds.minY - s;
+                    bounds.minY -= s;
+                } else { // Left side
+                    sqX = bounds.minX - s;
+                    sqY = bounds.minY;
+                    bounds.minX -= s;
+                }
+
+                squares.push({
+                    id: m,
+                    size: s,
+                    x: sqX,
+                    y: sqY,
+                    color: col
+                });
+            }
+
+            // Compute dynamic scale factor to always fit the SVG viewport beautifully
+            const unscaledWidth = bounds.maxX - bounds.minX;
+            const unscaledHeight = bounds.maxY - bounds.minY;
+            const maxDim = Math.max(unscaledWidth, unscaledHeight);
+            const scale = 420 / maxDim;
+
+            // Apply scale to squares and bounds
+            const scaledSquares = squares.map(sq => ({
+                ...sq,
+                x: sq.x * scale,
+                y: sq.y * scale,
+                size: sq.size * scale
+            }));
+
+            const sBounds = {
+                minX: bounds.minX * scale,
+                maxX: bounds.maxX * scale,
+                minY: bounds.minY * scale,
+                maxY: bounds.maxY * scale
+            };
+
+            // Center offset computation
+            const offX = 250 - (sBounds.minX + sBounds.maxX) / 2;
+            const offY = 250 - (sBounds.minY + sBounds.maxY) / 2;
+
+            // Construct the main flipped SVG group to map standard Cartesian (y goes up) to SVG (y goes down)
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.setAttribute("transform", `translate(${offX}, ${offY}) scale(1, -1)`);
+            svg.appendChild(g);
+
+            // Draw squares
+            scaledSquares.forEach(sq => {
+                const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                r.setAttribute("x", sq.x);
+                r.setAttribute("y", sq.y);
+                r.setAttribute("width", sq.size);
+                r.setAttribute("height", sq.size);
+                r.setAttribute("fill", sq.color);
+                r.setAttribute("fill-opacity", "0.1");
+                r.setAttribute("stroke", sq.color);
+                r.setAttribute("stroke-width", "1");
+                g.appendChild(r);
+            });
+
+            // Partition squares into the two symmetric spiral arms
+            const arm1Ids = [];
+            let curr1 = 2;
+            const diffs1 = [1, 2, 3, 2];
+            let idx1 = 0;
+            while (curr1 <= 2 * maxN) {
+                arm1Ids.push(curr1);
+                curr1 += diffs1[idx1 % 4];
+                idx1++;
+            }
+
+            const arm2Ids = [];
+            let curr2 = 1;
+            const diffs2 = [3, 2, 1, 2];
+            let idx2 = 0;
+            while (curr2 <= 2 * maxN) {
+                arm2Ids.push(curr2);
+                curr2 += diffs2[idx2 % 4];
+                idx2++;
+            }
+
+            // Helper to generate a single continuous arc path string
+            function getPathForArm(armIds, isArm1) {
+                if (armIds.length === 0) return "";
+                let path = "";
+
+                armIds.forEach((id, j) => {
+                    const sq = scaledSquares.find(s => s.id === id);
+                    if (!sq) return;
+
+                    const s = sq.size;
+                    const x = sq.x;
+                    const y = sq.y;
+
+                    // Periodic cycle of diagonal paths (BL -> TR, BR -> TL, TR -> BL, TL -> BR)
+                    const stepDir = isArm1 ? (j % 4) : ((j + 2) % 4);
+                    let startX, startY, endX, endY;
+
+                    if (stepDir === 0) {
+                        startX = x; startY = y;
+                        endX = x + s; endY = y + s;
+                    } else if (stepDir === 1) {
+                        startX = x + s; startY = y;
+                        endX = x; endY = y + s;
+                    } else if (stepDir === 2) {
+                        startX = x + s; startY = y + s;
+                        endX = x; endY = y;
+                    } else {
+                        startX = x; startY = y + s;
+                        endX = x + s; endY = y;
+                    }
+
+                    if (j === 0) {
+                        path += `M ${startX} ${startY}`;
+                    }
+                    // Changed sweep flag parameter from 0 to 1 to invert the arc curvature direction
+                    path += ` A ${s} ${s} 0 0 1 ${endX} ${endY}`;
+                });
+
+                return path;
+            }
+
+            // Draw the two smooth intertwined spiral curves
+            const paths = [
+                { d: getPathForArm(arm1Ids, true), stroke: "var(--accent-blue)" },
+                { d: getPathForArm(arm2Ids, false), stroke: "var(--accent-red)" }
+            ];
+
+            paths.forEach(p => {
+                if (!p.d) return;
+                const pth = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                pth.setAttribute("d", p.d);
+                pth.setAttribute("fill", "none");
+                pth.setAttribute("stroke", p.stroke);
+                pth.setAttribute("stroke-width", "3");
+                pth.setAttribute("stroke-linecap", "round");
+                g.appendChild(pth);
+            });
+        }
+
+        slider.addEventListener('input', (e) => updateUI(parseInt(e.target.value)));
+        document.getElementById('prev-btn').onclick = () => { if(slider.value > 0) { slider.value--; updateUI(parseInt(slider.value)); } };
+        document.getElementById('next-btn').onclick = () => { if(slider.value < 8) { slider.value++; updateUI(parseInt(slider.value)); } };
+
+        updateUI(3);
+    </script>
+</body>
+</html>
+
+```
