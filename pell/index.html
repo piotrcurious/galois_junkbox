@@ -206,15 +206,14 @@
             <div class="card">
                 <h2>Silver Spiral Visualizer</h2>
                 <p>
-                    <strong>The Silver Ratio:</strong> The ratio of sides in these rectangles converges to 1 + &radic;2.
-                    Each step adds two squares of size P<sub>n</sub> to the previous P<sub>n</sub> &times; P<sub>n-1</sub> rectangle.
+                    <strong>The Silver Tiling:</strong> We build rectangles according to <em>P<sub>n</sub> = 2P<sub>n-1</sub> + P<sub>n-2</sub></em>. In each step, we append <strong>two</strong> squares of size <em>P<sub>n</sub></em> to the previous <em>P<sub>n</sub> &times; P<sub>n-1</sub></em> rectangle. This creates a continuous spiral.
                 </p>
                 <svg id="spiral-svg" viewBox="0 0 500 500"></svg>
-                
+
                 <h3 style="margin-top: 24px;">Transformation Matrix</h3>
                 <div class="math-box" style="text-align: center; display: flex; align-items: center; justify-content: center;">
                     <div class="matrix-grid"><div>1</div><div>2</div><div>1</div><div>1</div></div>
-                    <sup>n</sup> = 
+                    <sup>n</sup> =
                     <div class="matrix-grid"><div id="m00" class="highlight-x">1</div><div id="m01">2</div><div id="m10" class="highlight-y">1</div><div id="m11">1</div></div>
                 </div>
             </div>
@@ -279,77 +278,71 @@
         }
 
         function renderSpiral(maxN) {
-            svg.innerHTML = ''; 
+            svg.innerHTML = '';
             if (maxN === 0) {
                 svg.innerHTML = `<text x="250" y="250" text-anchor="middle" fill="#94a3b8" font-size="16px">P_0 = 0</text>`;
                 return;
             }
 
-            let P = [0n, 1n];
-            for (let i = 2; i <= maxN + 1; i++) P.push(2n * P[i-1] + P[i-2]);
+            const ps = [0, 1];
+            for (let i = 2; i <= maxN + 1; i++) ps.push(2 * ps[i - 1] + ps[i - 2]);
 
-            const maxVal = Number(P[maxN + 1]);
-            const scale = maxVal > 0 ? 300 / maxVal : 1;
-
-            let curX = 250, curY = 250;
-            let dir = 0; // 0: Right, 1: Down, 2: Left, 3: Up
-            let pathData = `M 250 250`;
-
-            // Initial P1 square
-            let s1 = Number(P[1]) * scale;
-            drawSquare(curX, curY - s1, s1, 'hsl(215, 80%, 55%)', 0.1);
-            curX += s1;
+            const scale = 400 / ps[maxN + 1];
+            let x = 0, y = 0, dir = 0; // 0:R, 1:D, 2:L, 3:U
+            let pathData = "M 0 0";
+            const squares = [];
 
             for (let i = 1; i <= maxN; i++) {
-                let size = Number(P[i]) * scale;
-                let strokeColor = `hsl(${(i * 55) % 360}, 75%, 50%)`;
-
+                const s = ps[i] * scale;
+                const col = `hsl(${(i * 65 + 180) % 360}, 65%, 60%)`;
                 for (let j = 0; j < 2; j++) {
-                    let rx, ry, endX, endY, pivotX, pivotY;
-
-                    if (dir === 0) { // Moving "Right" in the spiral sense
-                        rx = curX; ry = curY - size;
-                        pivotX = curX; pivotY = curY;
-                        endX = curX + size; endY = curY;
-                        curX += size;
-                    } else if (dir === 1) { // Moving "Down"
-                        rx = curX - size; ry = curY;
-                        pivotX = curX; pivotY = curY;
-                        endX = curX; endY = curY + size;
-                        curY += size;
-                    } else if (dir === 2) { // Moving "Left"
-                        rx = curX - size; ry = curY - size;
-                        pivotX = curX; pivotY = curY;
-                        endX = curX - size; endY = curY;
-                        curX -= size;
-                    } else if (dir === 3) { // Moving "Up"
-                        rx = curX; ry = curY - size;
-                        pivotX = curX; pivotY = curY;
-                        endX = curX; endY = curY - size;
-                        curY -= size;
+                    let ex, ey, sx, sy;
+                    if (dir === 0) { // Right-ish
+                        ex = x + s; ey = y + s; sx = x; sy = y;
+                    } else if (dir === 1) { // Down-ish
+                        ex = x - s; ey = y + s; sx = x - s; sy = y;
+                    } else if (dir === 2) { // Left-ish
+                        ex = x - s; ey = y - s; sx = x - s; sy = y - s;
+                    } else { // Up-ish
+                        ex = x + s; ey = y - s; sx = x; sy = y - s;
                     }
 
-                    drawSquare(rx, ry, size, strokeColor, 0.1);
-                    pathData += ` A ${size} ${size} 0 0 1 ${endX} ${endY}`;
+                    pathData += ` A ${s} ${s} 0 0 1 ${ex} ${ey}`;
+                    squares.push({ x: sx, y: sy, s: s, c: col });
+                    x = ex; y = ey;
                     dir = (dir + 1) % 4;
                 }
             }
 
-            let spiralPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            spiralPath.setAttribute("d", pathData);
-            spiralPath.setAttribute("fill", "none");
-            spiralPath.setAttribute("stroke", "var(--math-bg)");
-            spiralPath.setAttribute("stroke-width", "2");
-            svg.appendChild(spiralPath);
-        }
+            // Centering logic
+            let minX = 0, maxX = 0, minY = 0, maxY = 0;
+            squares.forEach(sq => {
+                minX = Math.min(minX, sq.x); maxX = Math.max(maxX, sq.x + sq.s);
+                minY = Math.min(minY, sq.y); maxY = Math.max(maxY, sq.y + sq.s);
+            });
 
-        function drawSquare(x, y, size, color, opacity) {
-            let rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-            rect.setAttribute("x", x); rect.setAttribute("y", y);
-            rect.setAttribute("width", size); rect.setAttribute("height", size);
-            rect.setAttribute("fill", color); rect.setAttribute("fill-opacity", opacity);
-            rect.setAttribute("stroke", color); rect.setAttribute("stroke-width", 1);
-            svg.appendChild(rect);
+            const offX = 250 - (minX + maxX) / 2;
+            const offY = 250 - (minY + maxY) / 2;
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.setAttribute("transform", `translate(${offX}, ${offY})`);
+            svg.appendChild(g);
+
+            squares.forEach(sq => {
+                const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                r.setAttribute("x", sq.x); r.setAttribute("y", sq.y);
+                r.setAttribute("width", sq.s); r.setAttribute("height", sq.s);
+                r.setAttribute("fill", sq.c); r.setAttribute("fill-opacity", "0.1");
+                r.setAttribute("stroke", sq.c); r.setAttribute("stroke-width", "1");
+                g.appendChild(r);
+            });
+
+            const pth = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            pth.setAttribute("d", pathData);
+            pth.setAttribute("fill", "none");
+            pth.setAttribute("stroke", "var(--math-bg)");
+            pth.setAttribute("stroke-width", "2.5");
+            pth.setAttribute("stroke-linecap", "round");
+            g.appendChild(pth);
         }
 
         slider.addEventListener('input', (e) => updateUI(parseInt(e.target.value)));
