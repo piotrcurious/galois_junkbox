@@ -1,5 +1,5 @@
 # galois_junkbox
-junkbox to play with galois field , dreamed by BingAI/copilot
+junkbox to play with galois field , dreamed by BingAI/copilot and other AI
 
 Computing fractions to represent irrational numbers often involves the use of continued fractions, which provide increasingly accurate rational approximations of irrational numbers. For example, the square root of 2 can be approximated by an infinite continued fraction, and truncating this fraction at different points gives a sequence of rational numbers that converge to the square root of 2¹².
 
