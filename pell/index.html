@@ -287,29 +287,50 @@
             const ps = [0, 1];
             for (let i = 2; i <= maxN + 1; i++) ps.push(2 * ps[i - 1] + ps[i - 2]);
 
-            const scale = 400 / ps[maxN + 1];
-            let x = 0, y = 0, dir = 0; // 0:R, 1:D, 2:L, 3:U
-            let pathData = "M 0 0";
+            const scale = 400 / ps[maxN];
             const squares = [];
 
-            for (let i = 1; i <= maxN; i++) {
-                const s = ps[i] * scale;
-                const col = `hsl(${(i * 65 + 180) % 360}, 65%, 60%)`;
-                for (let j = 0; j < 2; j++) {
-                    let ex, ey, sx, sy;
-                    if (dir === 0) { // Right-ish
-                        ex = x + s; ey = y + s; sx = x; sy = y;
-                    } else if (dir === 1) { // Down-ish
-                        ex = x - s; ey = y + s; sx = x - s; sy = y;
-                    } else if (dir === 2) { // Left-ish
-                        ex = x - s; ey = y - s; sx = x - s; sy = y - s;
-                    } else { // Up-ish
-                        ex = x + s; ey = y - s; sx = x; sy = y - s;
-                    }
+            // Initial S1: [0, 1]x[0, 1]. Center (0,1), Arc (0,0) -> (1,1) [Up -> Right]
+            let x1 = 0, x2 = scale, y1 = 0, y2 = scale;
+            squares.push({x: 0, y: 0, s: scale, c: `hsl(180, 65%, 60%)`});
+            let pathData = `M 0 0 A ${scale} ${scale} 0 0 1 ${scale} ${scale}`;
 
-                    pathData += ` A ${s} ${s} 0 0 1 ${ex} ${ey}`;
-                    squares.push({ x: sx, y: sy, s: s, c: col });
-                    x = ex; y = ey;
+            if (maxN >= 2) {
+                // S2: [1, 2]x[0, 1]. Center (1,0), Arc (1,1) -> (2,0) [Down -> Right]
+                squares.push({x: scale, y: 0, s: scale, c: `hsl(180, 65%, 60%)`});
+                pathData += ` A ${scale} ${scale} 0 0 1 ${2 * scale} 0`;
+                x2 = 2 * scale; y1 = 0; y2 = scale; // Rect [0, 2]x[0, 1]
+
+                let dir = 0; // 0:Up, 1:Right, 2:Down, 3:Left
+                for (let i = 3; i <= maxN; i++) {
+                    const s = ps[i - 1] * scale;
+                    const col = `hsl(${(i * 65 + 180) % 360}, 65%, 60%)`;
+
+                    if (dir === 0) { // Up
+                        pathData += ` A ${s} ${s} 0 0 1 ${x1} ${y1 - s}`;
+                        squares.push({x: x1, y: y1 - s, s: s, c: col});
+                        pathData += ` A ${s} ${s} 0 0 1 ${x2} ${y1 - 2 * s}`;
+                        squares.push({x: x1, y: y1 - 2 * s, s: s, c: col});
+                        y1 -= 2 * s;
+                    } else if (dir === 1) { // Right
+                        pathData += ` A ${s} ${s} 0 0 1 ${x2 + s} ${y2}`;
+                        squares.push({x: x2, y: y1, s: s, c: col});
+                        pathData += ` A ${s} ${s} 0 0 1 ${x2 + 2 * s} ${y1}`;
+                        squares.push({x: x2 + s, y: y1, s: s, c: col});
+                        x2 += 2 * s;
+                    } else if (dir === 2) { // Down
+                        pathData += ` A ${s} ${s} 0 0 1 ${x1} ${y2 + s}`;
+                        squares.push({x: x1, y: y2, s: s, c: col});
+                        pathData += ` A ${s} ${s} 0 0 1 ${x2} ${y2 + 2 * s}`;
+                        squares.push({x: x1, y: y2 + s, s: s, c: col});
+                        y2 += 2 * s;
+                    } else { // Left
+                        pathData += ` A ${s} ${s} 0 0 1 ${x1 - s} ${y1}`;
+                        squares.push({x: x1 - s, y: y1, s: s, c: col});
+                        pathData += ` A ${s} ${s} 0 0 1 ${x1 - 2 * s} ${y2}`;
+                        squares.push({x: x1 - 2 * s, y: y1, s: s, c: col});
+                        x1 -= 2 * s;
+                    }
                     dir = (dir + 1) % 4;
                 }
             }
