@@ -108,6 +108,8 @@
             overflow-x: auto;
             margin: 12px 0;
             border-left: 4px solid var(--accent-blue);
+            white-space: pre-wrap;
+            word-break: break-all;
         }
 
         .highlight-y { color: #60a5fa; font-weight: bold; }
@@ -180,7 +182,7 @@
                 <h2>Field Explorer</h2>
                 <div class="controls">
                     <label for="exponent">Exponent (n): <strong id="exp-val">3</strong></label>
-                    <input type="range" id="exponent" min="0" max="8" value="3">
+                    <input type="range" id="exponent" min="0" max="10" value="3">
                     <button class="btn" id="prev-btn">⏮</button>
                     <button class="btn" id="next-btn">⏭</button>
                 </div>
@@ -256,17 +258,26 @@
         const svg = document.getElementById('spiral-svg');
 
         function updateUI(n) {
-            const { x, y } = computeCoefficients(n);
-            const normSign = n % 2 === 0 ? 1n : -1n;
+            let val = parseInt(n);
+            if (isNaN(val)) val = slider ? parseInt(slider.value) : 3;
+            if (isNaN(val)) val = 3;
 
-            expVal.innerText = n;
-            document.getElementById('m00').innerText = x.toString();
-            document.getElementById('m01').innerText = (2n * y).toString();
-            document.getElementById('m10').innerText = y.toString();
-            document.getElementById('m11').innerText = x.toString();
+            const { x, y } = computeCoefficients(val);
+            const normSign = val % 2 === 0 ? 1n : -1n;
 
-            expansionBox.innerHTML = `(1 + &radic;2)<sup>${n}</sup> = <span class="highlight-x">${x}</span> + <span class="highlight-y">${y}</span>&radic;2`;
-            pellExplanation.innerHTML = `Pell number P<sub>${n}</sub> = <span class="highlight-y">${y}</span>, Companion x<sub>${n}</sub> = <span class="highlight-x">${x}</span>.`;
+            expVal.innerText = val.toString();
+            const m00 = document.getElementById('m00');
+            const m01 = document.getElementById('m01');
+            const m10 = document.getElementById('m10');
+            const m11 = document.getElementById('m11');
+
+            if (m00) m00.innerText = x.toString();
+            if (m01) m01.innerText = (2n * y).toString();
+            if (m10) m10.innerText = y.toString();
+            if (m11) m11.innerText = x.toString();
+
+            expansionBox.innerHTML = `(1 + &radic;2)<sup>${val}</sup> = <span class="highlight-x">${x}</span> + <span class="highlight-y">${y}</span>&radic;2`;
+            pellExplanation.innerHTML = `Pell number P<sub>${val}</sub> = <span class="highlight-y">${y}</span>, Companion x<sub>${val}</sub> = <span class="highlight-x">${x}</span>.`;
             galoisBox.innerHTML = `&sigma;(${x} + ${y}&radic;2) = ${x} - ${y}&radic;2`;
 
             const xSq = x * x;
@@ -274,7 +285,7 @@
             normBox.innerHTML = `${x}<sup>2</sup> - 2(${y}<sup>2</sup>) = ${xSq} - ${twoYSq} = ${normSign}`;
             normExplanation.innerHTML = `The norm identity x<sub>n</sub><sup>2</sup> - 2y<sub>n</sub><sup>2</sup> = (-1)<sup>n</sup> holds exactly.`;
 
-            renderSpiral(n);
+            renderSpiral(val);
         }
 
         function renderSpiral(maxN) {
@@ -284,54 +295,47 @@
                 return;
             }
 
-            const ps = [0, 1];
-            for (let i = 2; i <= maxN + 1; i++) ps.push(2 * ps[i - 1] + ps[i - 2]);
+            const ps = [0n, 1n];
+            for (let i = 2; i <= maxN + 1; i++) ps.push(2n * ps[i - 1] + ps[i - 2]);
 
-            const scale = 400 / ps[maxN];
+            const scale = 400 / Number(ps[maxN + 1]);
             const squares = [];
 
-            // Initial S1: [0, 1]x[0, 1]. Center (0,1), Arc (0,0) -> (1,1) [Up -> Right]
-            let x1 = 0, x2 = scale, y1 = 0, y2 = scale;
-            squares.push({x: 0, y: 0, s: scale, c: `hsl(180, 65%, 60%)`});
-            let pathData = `M 0 0 A ${scale} ${scale} 0 0 1 ${scale} ${scale}`;
+            // Start at (0, P1) = (0, 1)
+            let x1 = 0, x2 = 0, y1 = 0, y2 = Number(ps[1]) * scale;
+            let pathData = `M 0 ${y2}`;
 
-            if (maxN >= 2) {
-                // S2: [1, 2]x[0, 1]. Center (1,0), Arc (1,1) -> (2,0) [Down -> Right]
-                squares.push({x: scale, y: 0, s: scale, c: `hsl(180, 65%, 60%)`});
-                pathData += ` A ${scale} ${scale} 0 0 1 ${2 * scale} 0`;
-                x2 = 2 * scale; y1 = 0; y2 = scale; // Rect [0, 2]x[0, 1]
+            for (let i = 1; i <= maxN; i++) {
+                const s = Number(ps[i]) * scale;
+                const dir = (i - 1) % 4;
+                const col = `hsl(${(i * 65 + 180) % 360}, 65%, 60%)`;
 
-                let dir = 0; // 0:Up, 1:Right, 2:Down, 3:Left
-                for (let i = 3; i <= maxN; i++) {
-                    const s = ps[i - 1] * scale;
-                    const col = `hsl(${(i * 65 + 180) % 360}, 65%, 60%)`;
-
-                    if (dir === 0) { // Up
-                        pathData += ` A ${s} ${s} 0 0 1 ${x1} ${y1 - s}`;
-                        squares.push({x: x1, y: y1 - s, s: s, c: col});
-                        pathData += ` A ${s} ${s} 0 0 1 ${x2} ${y1 - 2 * s}`;
-                        squares.push({x: x1, y: y1 - 2 * s, s: s, c: col});
-                        y1 -= 2 * s;
-                    } else if (dir === 1) { // Right
-                        pathData += ` A ${s} ${s} 0 0 1 ${x2 + s} ${y2}`;
-                        squares.push({x: x2, y: y1, s: s, c: col});
-                        pathData += ` A ${s} ${s} 0 0 1 ${x2 + 2 * s} ${y1}`;
-                        squares.push({x: x2 + s, y: y1, s: s, c: col});
-                        x2 += 2 * s;
-                    } else if (dir === 2) { // Down
-                        pathData += ` A ${s} ${s} 0 0 1 ${x1} ${y2 + s}`;
-                        squares.push({x: x1, y: y2, s: s, c: col});
-                        pathData += ` A ${s} ${s} 0 0 1 ${x2} ${y2 + 2 * s}`;
-                        squares.push({x: x1, y: y2 + s, s: s, c: col});
-                        y2 += 2 * s;
-                    } else { // Left
-                        pathData += ` A ${s} ${s} 0 0 1 ${x1 - s} ${y1}`;
-                        squares.push({x: x1 - s, y: y1, s: s, c: col});
-                        pathData += ` A ${s} ${s} 0 0 1 ${x1 - 2 * s} ${y2}`;
-                        squares.push({x: x1 - 2 * s, y: y1, s: s, c: col});
-                        x1 -= 2 * s;
-                    }
-                    dir = (dir + 1) % 4;
+                if (dir === 0) { // Right
+                    squares.push({x: x2, y: y1, s: s, c: col});
+                    squares.push({x: x2 + s, y: y1, s: s, c: col});
+                    // Arc A: (x1, y2) -> (x2+s, y1) Center (x2, y2) NO, Center (x1, y1)
+                    pathData += ` A ${s} ${s} 0 0 1 ${x2 + s} ${y1}`;
+                    // Arc B: (x2+s, y1) -> (x2+2s, y2) Center (x2+2s, y1) NO, Center (x2+s, y2)
+                    pathData += ` A ${s} ${s} 0 0 1 ${x2 + 2 * s} ${y2}`;
+                    x2 += 2 * s;
+                } else if (dir === 1) { // Down
+                    squares.push({x: x1, y: y2, s: s, c: col});
+                    squares.push({x: x1, y: y2 + s, s: s, c: col});
+                    pathData += ` A ${s} ${s} 0 0 1 ${x1} ${y2 + s}`;
+                    pathData += ` A ${s} ${s} 0 0 1 ${x2} ${y2 + 2 * s}`;
+                    y2 += 2 * s;
+                } else if (dir === 2) { // Left
+                    squares.push({x: x1 - s, y: y1, s: s, c: col});
+                    squares.push({x: x1 - 2 * s, y: y1, s: s, c: col});
+                    pathData += ` A ${s} ${s} 0 0 1 ${x1 - s} ${y1}`;
+                    pathData += ` A ${s} ${s} 0 0 1 ${x1 - 2 * s} ${y2}`;
+                    x1 -= 2 * s;
+                } else { // Up
+                    squares.push({x: x1, y: y1 - s, s: s, c: col});
+                    squares.push({x: x1, y: y1 - 2 * s, s: s, c: col});
+                    pathData += ` A ${s} ${s} 0 0 1 ${x2} ${y1 - s}`;
+                    pathData += ` A ${s} ${s} 0 0 1 ${x1} ${y1 - 2 * s}`;
+                    y1 -= 2 * s;
                 }
             }
 
@@ -368,9 +372,10 @@
 
         slider.addEventListener('input', (e) => updateUI(parseInt(e.target.value)));
         document.getElementById('prev-btn').onclick = () => { if(slider.value > 0) { slider.value--; updateUI(parseInt(slider.value)); } };
-        document.getElementById('next-btn').onclick = () => { if(slider.value < 8) { slider.value++; updateUI(parseInt(slider.value)); } };
+        document.getElementById('next-btn').onclick = () => { if(slider.value < 10) { slider.value++; updateUI(parseInt(slider.value)); } };
 
-        updateUI(3);
+        // Initial update
+        window.onload = () => updateUI(3);
     </script>
 </body>
 </html>
